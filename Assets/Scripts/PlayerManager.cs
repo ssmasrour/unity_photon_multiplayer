@@ -2,83 +2,142 @@ using UnityEngine;
 using UnityEngine.EventSystems;
 
 using Photon.Pun;
+using Photon.Realtime;
 
 using System.Collections;
 
-namespace Com.MyCompany.MyGame
+using Photon.Pun.Demo.PunBasics;
+
+public class PlayerManager : MonoBehaviourPunCallbacks, IPunObservable
 {
-    /// <summary>
-    /// Player manager.
-    /// Handles fire Input and Beams.
-    /// </summary>
-    public class PlayerManager : MonoBehaviourPunCallbacks
+    #region Private Fields
+    public float Health = 0;
+    bool IsFiring;
+
+
+    [SerializeField]
+    private GameObject beams;
+
+
+    PhotonView PhotonView;
+    #endregion
+
+    #region MonoBehaviour CallBacks
+
+    void Awake()
     {
-        #region Private Fields
-
-        [Tooltip("The Beams GameObject to control")]
-        [SerializeField]
-        private GameObject beams;
-        //True, when the user is firing
-        bool IsFiring;
-        #endregion
-
-        #region MonoBehaviour CallBacks
-
-        /// <summary>
-        /// MonoBehaviour method called on GameObject by Unity during early initialization phase.
-        /// </summary>
-        void Awake()
+        if (beams == null)
         {
-            if (beams == null)
-            {
-                Debug.LogError("<Color=Red><a>Missing</a></Color> Beams Reference.", this);
-            }
-            else
-            {
-                beams.SetActive(false);
-            }
+            Debug.LogError("<Color=Red><a>Missing</a></Color> Beams Reference.", this);
+        }
+        else
+        {
+            beams.SetActive(false);
         }
 
-        /// <summary>
-        /// MonoBehaviour method called on GameObject by Unity on every frame.
-        /// </summary>
-        void Update()
-        {
+        PhotonView = GetComponent<PhotonView>();
+    }
 
+    private void Start()
+    {
+        var cameraController = GetComponent<CameraWork>();
+
+        bool cameraActivation = cameraController != null;
+        cameraActivation &= photonView.IsMine;
+
+        if (cameraActivation)
+        {
+            cameraController.OnStartFollowing();
+        } else
+        {
+            Debug.LogError("Camera is not mine", this);
+        }
+    }
+
+
+    private void OnTriggerEnter(Collider other)
+    {
+        if (!PhotonView.IsMine)
+        {
+            return;
+        }
+
+        if (!other.name.Contains("Beam"))
+        {
+            return;
+        }
+
+        Health -= 0.1f;
+    }
+
+    private void OnTriggerStay(Collider other)
+    {
+        if (!PhotonView.IsMine)
+        {
+            return;
+        }
+
+        if (!other.name.Contains("Beam"))
+        {
+            return;
+        }
+
+        Health -= 0.1f * Time.deltaTime;
+    }
+
+    void Update()
+    {
+        if(PhotonView.IsMine)
+        {
             ProcessInputs();
 
-            // trigger Beams active state
-            if (beams != null && IsFiring != beams.activeInHierarchy)
-            {
-                beams.SetActive(IsFiring);
-            }
+            if (Health <= 0.00f)
+                GameManager.Instance.LeaveRoom();
+
         }
 
-        #endregion
-
-        #region Custom
-
-        /// <summary>
-        /// Processes the inputs. Maintain a flag representing when the user is pressing Fire.
-        /// </summary>
-        void ProcessInputs()
+        // trigger Beams active state
+        if (beams != null && IsFiring != beams.activeInHierarchy)
         {
-            if (Input.GetButtonDown("Fire1"))
-            {
-                if (!IsFiring)
-                {
-                    IsFiring = true;
-                }
-            }
-            if (Input.GetButtonUp("Fire1"))
-            {
-                if (IsFiring)
-                {
-                    IsFiring = false;
-                }
-            }
+            beams.SetActive(IsFiring);
         }
 
-        #endregion
     }
+
+    #endregion
+
+
+    #region Custom
+    void ProcessInputs()
+    {
+        if (Input.GetButtonDown("Fire1"))
+        {
+            if (!IsFiring)
+            {
+                IsFiring = true;
+            }
+        }
+        if (Input.GetButtonUp("Fire1"))
+        {
+            if (IsFiring)
+            {
+                IsFiring = false;
+            }
+        }
+    }
+
+    public void OnPhotonSerializeView(PhotonStream stream, PhotonMessageInfo info)
+    {
+        if (stream.IsWriting)
+        {
+            stream.SendNext(IsFiring);
+            stream.SendNext(Health);
+        } else
+        {
+            this.IsFiring = (bool)stream.ReceiveNext();
+            this.Health = (float)stream.ReceiveNext();
+        }
+    }
+
+    #endregion
 }

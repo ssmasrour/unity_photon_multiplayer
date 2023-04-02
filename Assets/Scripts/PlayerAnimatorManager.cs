@@ -1,8 +1,9 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using Photon.Pun;
 
-public class PlayerAnimatorManager : MonoBehaviour
+public class PlayerAnimatorManager : MonoBehaviourPun
 {
     Animator animator;
     [SerializeField]
@@ -22,10 +23,9 @@ public class PlayerAnimatorManager : MonoBehaviour
 
     void Update()
     {
-        if (!animator)
-        {
-            return;
-        }
+        if (!photonView.IsMine && PhotonNetwork.IsConnected) return;
+
+        if (!animator) return;
         
         Jumping();
 

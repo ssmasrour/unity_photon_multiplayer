@@ -9,6 +9,22 @@ using Photon.Realtime;
 
 public class GameManager : MonoBehaviourPunCallbacks
 {
+    public static GameManager Instance;
+
+    [SerializeField] GameObject _PlayerPrefab;
+
+    private void Awake()
+    {
+        Instance = this;
+    }
+
+    private void Start()
+    {
+        if (_PlayerPrefab == null) return;
+
+        PhotonNetwork.Instantiate(_PlayerPrefab.name, Vector3.zero, Quaternion.identity);
+    }
+
     #region public functions
     public void LeaveRoom()
     {
@@ -45,13 +61,8 @@ public class GameManager : MonoBehaviourPunCallbacks
     #region Private Functions
     void LoadArena()
     {
-        if (!PhotonNetwork.IsMasterClient)
-        {
-            Debug.LogError("PhotonNetwork : Trying to Load a level but we are not the master Client");
-            return;
-        }
+        if (!PhotonNetwork.IsMasterClient) return;
 
-        Debug.LogFormat("PhotonNetwork : Loading Level : {0}", PhotonNetwork.CurrentRoom.PlayerCount);
         PhotonNetwork.LoadLevel("Room for " + PhotonNetwork.CurrentRoom.PlayerCount);
     }
     #endregion
